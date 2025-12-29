@@ -8,6 +8,7 @@ import { auditLog } from '../middleware/security.js';
 const socketRateLimits = new Map();
 const SOCKET_RATE_LIMITS = {
   'admin:call-number': { windowMs: 1000, maxRequests: 3 }, // 3 calls per second max
+  'admin:uncall-number': { windowMs: 1000, maxRequests: 3 }, // 3 uncalls per second max
   'admin:start-game': { windowMs: 5000, maxRequests: 1 },  // 1 per 5 seconds
   'admin:end-game': { windowMs: 5000, maxRequests: 1 },
   'admin:verify-winner': { windowMs: 2000, maxRequests: 2 },
@@ -362,6 +363,66 @@ export function setupSocketHandlers(io) {
         await checkForWinners(io, state.calledNumbers);
       } catch (err) {
         console.error('Error calling number:', err);
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    // Admin: Uncall number (remove incorrectly called number) - SECURITY HARDENED
+    socket.on('admin:uncall-number', async ({ number }) => {
+      // SECURITY: Rate limit check
+      if (!checkSocketRateLimit(socket.id, 'admin:uncall-number')) {
+        auditLog({
+          action: 'RATE_LIMIT_SOCKET',
+          event: 'admin:uncall-number',
+          socketId: socket.id,
+        });
+        socket.emit('error', { message: 'Too many requests. Please slow down.' });
+        return;
+      }
+
+      if (!socket.isAdmin) {
+        auditLog({
+          action: 'GAME_ACTION_DENIED',
+          reason: 'Not admin',
+          socketId: socket.id,
+          attemptedAction: 'uncall-number',
+          number,
+        });
+        socket.emit('error', { message: 'Unauthorized' });
+        return;
+      }
+
+      // SECURITY: Validate number is in valid bingo range (1-75)
+      if (!Number.isInteger(number) || number < 1 || number > 75) {
+        auditLog({
+          action: 'INVALID_NUMBER_UNCALL',
+          adminId: socket.userId,
+          number,
+        });
+        socket.emit('error', { message: 'Invalid number. Must be between 1 and 75.' });
+        return;
+      }
+
+      try {
+        auditLog({
+          action: 'NUMBER_UNCALLED',
+          adminId: socket.userId,
+          number,
+        });
+
+        const state = await gameState.uncallNumber(number);
+
+        // Emit to all clients
+        io.emit('number-uncalled', {
+          number,
+          calledNumbers: state.calledNumbers,
+          currentNumber: state.currentNumber,
+        });
+        io.emit('game-state', state);
+
+        console.log(`Number uncalled: ${number}`);
+      } catch (err) {
+        console.error('Error uncalling number:', err);
         socket.emit('error', { message: err.message });
       }
     });

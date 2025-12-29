@@ -258,6 +258,35 @@ export async function callNumber(number) {
 }
 
 /**
+ * Uncall a number (remove from called numbers)
+ * Used when admin accidentally calls the wrong number
+ */
+export async function uncallNumber(number) {
+  const game = await Game.findActive();
+  if (!game) {
+    throw new Error('No active game');
+  }
+
+  // Check if number was actually called
+  if (!game.calledNumbers.includes(number)) {
+    throw new Error(`Number ${number} was not called`);
+  }
+
+  // Remove the number from calledNumbers
+  game.calledNumbers = game.calledNumbers.filter(n => n !== number);
+
+  // Update currentNumber to the last called number or null
+  game.currentNumber = game.calledNumbers.length > 0
+    ? game.calledNumbers[game.calledNumbers.length - 1]
+    : null;
+
+  await game.save();
+  console.log(`[GameState] Number ${number} uncalled. Current: ${game.currentNumber}, Total called: ${game.calledNumbers.length}`);
+
+  return getGameState();
+}
+
+/**
  * Get called numbers
  */
 export async function getCalledNumbers() {
@@ -749,6 +778,7 @@ export default {
   endGame,
   clearGame,
   callNumber,
+  uncallNumber,
   getCalledNumbers,
   addAvailableCards,
   getAvailableCards,
