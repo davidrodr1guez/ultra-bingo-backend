@@ -698,7 +698,7 @@ export async function resetAllCards(keepAvailable = false, generateCount = 100) 
 }
 
 /**
- * Full reset - reset game AND all cards
+ * Full reset - reset game AND all cards AND winners history
  * This starts everything fresh
  */
 export async function fullReset(generateCount = 100) {
@@ -722,11 +722,16 @@ export async function fullReset(generateCount = 100) {
   // Reset all cards
   const cardResult = await resetAllCards(false, generateCount);
 
+  // Clear winners history
+  const deletedWinners = await Winner.deleteMany({});
+  console.log(`[GameState] Deleted ${deletedWinners.deletedCount} winners from history`);
+
   console.log('[GameState] Full reset complete');
 
   return {
     game: await getGameState(),
     cards: cardResult,
+    deletedWinners: deletedWinners.deletedCount,
   };
 }
 
