@@ -24,10 +24,18 @@ import adminRoutes from './routes/admin.js';
 const app = express();
 const httpServer = createServer(app);
 
+// Allowed origins for CORS (supports multiple domains)
+const allowedOrigins = [
+  config.frontendUrl,
+  'https://bingo.ultravioletadao.xyz',
+  'https://ultra-bingo-frontend.vercel.app',
+  'http://localhost:5173',
+].filter(Boolean);
+
 // Socket.io setup
 const io = new Server(httpServer, {
   cors: {
-    origin: config.frontendUrl,
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -38,7 +46,7 @@ app.set('io', io);
 
 // CORS middleware with x402 headers
 app.use(cors({
-  origin: config.frontendUrl,
+  origin: allowedOrigins,
   credentials: true,
   exposedHeaders: [
     'PAYMENT-REQUIRED',
