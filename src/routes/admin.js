@@ -553,6 +553,94 @@ router.get('/users', verifyAdminStrict, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/game/reset
+ * Reset game state (clear called numbers, winner, set to waiting)
+ */
+router.post('/game/reset', verifyAdminStrict, async (req, res) => {
+  try {
+    const state = await gameState.clearGame();
+    const io = req.app.get('io');
+
+    auditLog({
+      action: 'GAME_RESET',
+      ip: req.ip,
+    });
+
+    io.emit('game-reset', state);
+    io.emit('game-state', state);
+
+    res.json({
+      success: true,
+      message: 'Game reset successfully',
+      state,
+    });
+  } catch (error) {
+    console.error('Error resetting game:', error);
+    res.status(500).json({ error: 'Failed to reset game' });
+  }
+});
+
+/**
+ * POST /api/admin/cards/reset
+ * Reset all cards (delete purchased, regenerate available)
+ */
+router.post('/cards/reset', verifyAdminStrict, async (req, res) => {
+  try {
+    const { keepAvailable = false, generateCount = 100 } = req.body;
+
+    const result = await gameState.resetAllCards(keepAvailable, generateCount);
+
+    auditLog({
+      action: 'CARDS_RESET',
+      keepAvailable,
+      generateCount,
+      deletedPurchased: result.deletedPurchased,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'Cards reset successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error('Error resetting cards:', error);
+    res.status(500).json({ error: 'Failed to reset cards' });
+  }
+});
+
+/**
+ * POST /api/admin/full-reset
+ * Full reset - reset game AND all cards
+ */
+router.post('/full-reset', verifyAdminStrict, async (req, res) => {
+  try {
+    const { generateCount = 100 } = req.body;
+
+    const result = await gameState.fullReset(generateCount);
+    const io = req.app.get('io');
+
+    auditLog({
+      action: 'FULL_RESET',
+      generateCount,
+      ip: req.ip,
+    });
+
+    io.emit('game-reset', result.game);
+    io.emit('game-state', result.game);
+
+    res.json({
+      success: true,
+      message: 'Full reset completed successfully',
+      ...result,
+    });
+  } catch (error) {
+    console.error('Error performing full reset:', error);
+    res.status(500).json({ error: 'Failed to perform full reset' });
+  }
+});
+
+/**
  * GET /api/admin/cards/:cardId/details
  * Get detailed info for a specific card
  */

@@ -1,0 +1,19 @@
+{
+  "name": "ultra-bingo-lambda",
+  "version": "1.0.0",
+  "description": "Ultra Bingo AWS Lambda Functions",
+  "type": "module",
+  "scripts": {
+    "build": "npm install && zip -r function.zip .",
+    "deploy:api": "aws lambda update-function-code --function-name ultra-bingo-prod-api --zip-file fileb://function.zip",
+    "deploy:all": "npm run build && npm run deploy:api"
+  },
+  "dependencies": {
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.0.0",
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/client-secrets-manager": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^13.0.0"
+  }
+}

@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: ultra-bingo-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: --dns-result-order=ipv4first
+      - key: MONGODB_URI
+        sync: false  # Set manually in Render dashboard
+      - key: JWT_SECRET
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_WALLETS
+        sync: false
+      - key: X402_FACILITATOR_URL
+        value: https://facilitator.ultravioletadao.xyz
+      - key: X402_NETWORK
+        value: avalanche
+      - key: X402_RECEIVER_ADDRESS
+        sync: false
+      - key: CARD_PRICE
+        value: "0.001"
+      - key: FRONTEND_URL
+        sync: false  # Set after deploying frontend

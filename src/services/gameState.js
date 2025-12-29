@@ -667,6 +667,69 @@ export async function disableWonCard(cardId) {
   return result;
 }
 
+/**
+ * Reset all cards - delete purchased and won cards, keep or regenerate available cards
+ * @param {boolean} keepAvailable - If true, keep available cards. If false, regenerate all.
+ * @param {number} generateCount - Number of cards to generate if not keeping available
+ */
+export async function resetAllCards(keepAvailable = false, generateCount = 100) {
+  // Delete purchased and won cards
+  const deletedPurchased = await Card.deleteMany({ status: { $in: ['purchased', 'won', 'reserved'] } });
+  console.log(`[GameState] Deleted ${deletedPurchased.deletedCount} purchased/won/reserved cards`);
+
+  if (!keepAvailable) {
+    // Delete all available cards too
+    const deletedAvailable = await Card.deleteMany({ status: 'available' });
+    console.log(`[GameState] Deleted ${deletedAvailable.deletedCount} available cards`);
+
+    // Generate new cards
+    if (generateCount > 0) {
+      const newCards = generateMultipleCards(generateCount);
+      await addAvailableCards(newCards);
+      console.log(`[GameState] Generated ${generateCount} new cards`);
+    }
+  }
+
+  const finalCount = await Card.countDocuments({ status: 'available' });
+  return {
+    deletedPurchased: deletedPurchased.deletedCount,
+    availableCards: finalCount,
+  };
+}
+
+/**
+ * Full reset - reset game AND all cards
+ * This starts everything fresh
+ */
+export async function fullReset(generateCount = 100) {
+  // End any active game
+  const game = await Game.findActive();
+  if (game) {
+    await game.end();
+  }
+
+  // Create new game in waiting state
+  const newGame = new Game({
+    gameId: `game_${Date.now()}`,
+    status: 'waiting',
+    calledNumbers: [],
+    currentNumber: null,
+    winner: null,
+    gameMode: 'fullCard',
+  });
+  await newGame.save();
+
+  // Reset all cards
+  const cardResult = await resetAllCards(false, generateCount);
+
+  console.log('[GameState] Full reset complete');
+
+  return {
+    game: await getGameState(),
+    cards: cardResult,
+  };
+}
+
 export default {
   GAME_STATUS,
   GAME_MODES,
@@ -698,6 +761,8 @@ export default {
   confirmReservation,
   cleanExpiredReservations,
   disableWonCard,
+  resetAllCards,
+  fullReset,
   upsertUser,
   getUser,
   getUserByWallet,
