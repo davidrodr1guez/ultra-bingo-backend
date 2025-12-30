@@ -15,11 +15,11 @@ const auditLogs = [];
  * Rate limiter configuration
  */
 const RATE_LIMITS = {
-  login: { windowMs: 15 * 60 * 1000, maxRequests: 5 }, // 5 requests per 15 minutes
-  register: { windowMs: 60 * 60 * 1000, maxRequests: 10 }, // 10 per hour
-  purchase: { windowMs: 60 * 1000, maxRequests: 10 }, // 10 per minute
-  adminAction: { windowMs: 60 * 1000, maxRequests: 30 }, // 30 per minute
-  general: { windowMs: 60 * 1000, maxRequests: 100 }, // 100 per minute
+  login: { windowMs: 15 * 60 * 1000, maxRequests: 10 }, // 10 requests per 15 minutes
+  register: { windowMs: 5 * 60 * 1000, maxRequests: 10 }, // 10 per 5 minutes (more lenient)
+  purchase: { windowMs: 60 * 1000, maxRequests: 20 }, // 20 per minute
+  adminAction: { windowMs: 60 * 1000, maxRequests: 60 }, // 60 per minute
+  general: { windowMs: 60 * 1000, maxRequests: 200 }, // 200 per minute
 };
 
 /**
