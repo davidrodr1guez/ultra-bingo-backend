@@ -24,6 +24,22 @@ const USDC_ADDRESSES = {
   'base-sepolia': '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
 };
 
+// Nombres de dominio EIP-712 por red (deben coincidir con el contrato USDC de cada red)
+// Monad, Celo, HyperEVM, Unichain usan "USDC", los demás usan "USD Coin"
+const USDC_DOMAIN_NAMES = {
+  'avalanche': 'USD Coin',
+  'base': 'USD Coin',
+  'polygon': 'USD Coin',
+  'ethereum': 'USD Coin',
+  'arbitrum': 'USD Coin',
+  'optimism': 'USD Coin',
+  'celo': 'USDC',
+  'monad': 'USDC',
+  'hyperevm': 'USDC',
+  'unichain': 'USDC',
+  'base-sepolia': 'USDC',
+};
+
 // Mapeo de chainId a nombre de red
 const CHAIN_ID_TO_NETWORK = {
   43114: 'avalanche',
@@ -118,6 +134,9 @@ function sendPaymentRequired(req, res, routeConfig) {
   // Convertir precio a unidades atómicas de USDC (6 decimales)
   const priceInAtomicUnits = Math.round(price * 1_000_000).toString();
 
+  // Obtener nombre de dominio correcto para esta red
+  const domainName = USDC_DOMAIN_NAMES[network] || 'USD Coin';
+
   // Formato v1 compatible con uvd-x402-sdk
   const paymentInfo = {
     x402Version: 1,
@@ -129,7 +148,7 @@ function sendPaymentRequired(req, res, routeConfig) {
     description: `Purchase of ${cardCount} bingo card(s)`,
     resource: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
     extra: {
-      name: 'USD Coin',
+      name: domainName,
       version: '2',
     },
   };
@@ -175,6 +194,9 @@ async function verifyPayment(paymentHeader, routeConfig, req) {
     const price = cardCount * config.cardPrice;
     const maxAmountRequired = Math.round(price * 1_000_000).toString();
 
+    // Obtener nombre de dominio correcto para esta red
+    const domainName = USDC_DOMAIN_NAMES[network] || 'USD Coin';
+
     // Construir paymentRequirements según la especificación x402
     const paymentRequirements = {
       scheme: 'exact',
@@ -187,7 +209,7 @@ async function verifyPayment(paymentHeader, routeConfig, req) {
       maxTimeoutSeconds: 60,
       asset: usdcAddress,
       extra: {
-        name: 'USD Coin',
+        name: domainName,
         version: '2',
       },
     };
