@@ -8,11 +8,35 @@
 
 import { config } from '../config/index.js';
 
-// USDC contract addresses por red
+// USDC contract addresses por red (todas las mainnets de uvd-x402-sdk)
 const USDC_ADDRESSES = {
   'avalanche': '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
   'base': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  'polygon': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+  'ethereum': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  'arbitrum': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+  'optimism': '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+  'celo': '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
+  'monad': '0x754704bc059f8c67012fed69bc8a327a5aafb603',
+  'hyperevm': '0xb88339CB7199b77E23DB6E890353E22632Ba630f',
+  'unichain': '0x078d782b760474a361dda0af3839290b0ef57ad6',
+  // Testnet (legacy)
   'base-sepolia': '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+};
+
+// Mapeo de chainId a nombre de red
+const CHAIN_ID_TO_NETWORK = {
+  43114: 'avalanche',
+  8453: 'base',
+  137: 'polygon',
+  1: 'ethereum',
+  42161: 'arbitrum',
+  10: 'optimism',
+  42220: 'celo',
+  143: 'monad',
+  999: 'hyperevm',
+  130: 'unichain',
+  84532: 'base-sepolia',
 };
 
 /**
@@ -68,9 +92,14 @@ export function createX402Middleware(routeConfigs) {
 
 /**
  * Enviar respuesta 402 Payment Required (formato v1)
+ * Detecta la red del body o query, o usa el default del config
  */
 function sendPaymentRequired(req, res, routeConfig) {
-  const network = config.x402.network; // "avalanche"
+  // Detectar red del request (body.network, query.network, o header X-Network)
+  const requestedNetwork = req.body?.network || req.query?.network || req.headers['x-network'];
+  const network = (requestedNetwork && USDC_ADDRESSES[requestedNetwork])
+    ? requestedNetwork
+    : config.x402.network;
   const usdcAddress = USDC_ADDRESSES[network] || USDC_ADDRESSES['avalanche'];
 
   // Calcular precio basado en el body de la request
@@ -117,22 +146,25 @@ function sendPaymentRequired(req, res, routeConfig) {
 /**
  * Verificar pago con el facilitador de UltravioletaDAO
  * El facilitador espera: { paymentPayload, paymentRequirements }
+ * Detecta la red del payment payload
  */
 async function verifyPayment(paymentHeader, routeConfig, req) {
   const facilitatorUrl = config.x402.facilitatorUrl.replace(/\/$/, '');
-  const network = config.x402.network;
+
+  // Primero decodificar el payload para obtener la red
+  let paymentPayload;
+  try {
+    const decoded = Buffer.from(paymentHeader, 'base64').toString('utf-8');
+    paymentPayload = JSON.parse(decoded);
+  } catch (e) {
+    return { valid: false, error: 'Invalid payment header encoding' };
+  }
+
+  // Detectar la red del payment payload (viene del frontend)
+  const network = paymentPayload.network || config.x402.network;
   const usdcAddress = USDC_ADDRESSES[network] || USDC_ADDRESSES['avalanche'];
 
   try {
-    // Decodificar el payload de pago (viene de uvd-x402-sdk)
-    let paymentPayload;
-    try {
-      const decoded = Buffer.from(paymentHeader, 'base64').toString('utf-8');
-      paymentPayload = JSON.parse(decoded);
-    } catch (e) {
-      return { valid: false, error: 'Invalid payment header encoding' };
-    }
-
     // Calcular el monto requerido (quantity o cardIds)
     let cardCount = 1;
     if (req?.body?.quantity && typeof req.body.quantity === 'number') {

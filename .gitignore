@@ -30,3 +30,8 @@ Thumbs.db
 # Build
 dist/
 build/
+terraform/.terraform/
+*.zip
+terraform/terraform.tfstate*
+terraform/tfplan
+terraform/terraform.tfvars
