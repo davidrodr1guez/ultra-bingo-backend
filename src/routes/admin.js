@@ -641,6 +641,32 @@ router.post('/full-reset', verifyAdminStrict, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/users/reset
+ * Delete all registered users
+ */
+router.post('/users/reset', verifyAdminStrict, async (req, res) => {
+  try {
+    const User = (await import('../models/User.js')).default;
+    const result = await User.deleteMany({});
+
+    auditLog({
+      action: 'USERS_RESET',
+      deletedCount: result.deletedCount,
+      ip: req.ip,
+    });
+
+    res.json({
+      success: true,
+      message: 'All users deleted successfully',
+      deletedUsers: result.deletedCount,
+    });
+  } catch (error) {
+    console.error('Error resetting users:', error);
+    res.status(500).json({ error: 'Failed to reset users' });
+  }
+});
+
+/**
  * GET /api/admin/cards/:cardId/details
  * Get detailed info for a specific card
  */
