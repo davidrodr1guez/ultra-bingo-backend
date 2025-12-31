@@ -289,6 +289,45 @@ router.post('/cards/generate', verifyAdminStrict, rateLimit('adminAction'), asyn
 });
 
 /**
+ * DELETE /api/admin/cards/available
+ * Delete available cards (not purchased ones)
+ */
+router.delete('/cards/available', verifyAdminStrict, rateLimit('adminAction'), async (req, res) => {
+  try {
+    const { count = 50 } = req.body;
+    const limitedCount = Math.min(Math.max(1, parseInt(count) || 50), 100);
+
+    // Get available cards and delete the specified count
+    const Card = (await import('../models/Card.js')).default;
+    const cardsToDelete = await Card.find({ status: 'available' })
+      .sort({ createdAt: -1 })
+      .limit(limitedCount)
+      .select('_id');
+
+    const cardIds = cardsToDelete.map(c => c._id);
+    const result = await Card.deleteMany({ _id: { $in: cardIds } });
+
+    auditLog({
+      action: 'CARDS_DELETED',
+      count: result.deletedCount,
+      requestedCount: count,
+      ip: req.ip,
+    });
+
+    const remainingAvailable = await Card.countDocuments({ status: 'available' });
+
+    res.json({
+      success: true,
+      deleted: result.deletedCount,
+      remainingAvailable,
+    });
+  } catch (error) {
+    console.error('Error deleting cards:', error.message);
+    res.status(500).json({ error: 'Failed to delete cards' });
+  }
+});
+
+/**
  * GET /api/admin/stats
  * Get game statistics
  */
